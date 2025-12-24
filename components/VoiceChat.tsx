@@ -148,9 +148,9 @@ export const VoiceChat: React.FC<VoiceChatProps> = ({ isOpen, setIsOpen }) => {
             analyzer.fftSize = 64; analyzerRef.current = analyzer;
             source.connect(analyzer);
             const processor = audioContextRef.current!.createScriptProcessor(4096, 1, 1);
-            processor.onaudioprocess = (e) => {
+            processor.onaudioprocess = (e: AudioProcessingEvent) => {
               const blob = createPCM16Blob(e.inputBuffer.getChannelData(0));
-              sessionPromise.then(s => s.sendRealtimeInput({ media: blob }));
+              sessionPromise.then((s: any) => s.sendRealtimeInput({ media: blob }));
             };
             source.connect(processor); processor.connect(audioContextRef.current!.destination);
             drawVisualizer();
@@ -169,7 +169,7 @@ export const VoiceChat: React.FC<VoiceChatProps> = ({ isOpen, setIsOpen }) => {
               const newMsgs: Message[] = [];
               if (u) newMsgs.push({ role: 'user', text: u });
               if (m) newMsgs.push({ role: 'model', text: m });
-              if (newMsgs.length > 0) setMessages(prev => [...prev, ...newMsgs]);
+              if (newMsgs.length > 0) setMessages((prev: Message[]) => [...prev, ...newMsgs]);
               currentInputText.current = ''; currentOutputText.current = ''; setStreamingUserText(''); setStreamingModelText('');
             }
             const audioData = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
@@ -183,7 +183,7 @@ export const VoiceChat: React.FC<VoiceChatProps> = ({ isOpen, setIsOpen }) => {
             }
             if (msg.serverContent?.interrupted) stopAllPlayback();
           },
-          onerror: (err) => { console.error(err); setIsLive(false); },
+          onerror: (err: any) => { console.error(err); setIsLive(false); },
           onclose: () => { setIsLive(false); if (sessionRef.current?.cleanup) sessionRef.current.cleanup(); },
         },
         config: {
@@ -216,7 +216,7 @@ export const VoiceChat: React.FC<VoiceChatProps> = ({ isOpen, setIsOpen }) => {
         model: "gemini-3-flash-preview", contents: userMsg,
         config: { systemInstruction: "Answer concisely about file management." }
       });
-      setMessages(prev => [...prev, { role: 'model', text: response.text || "I couldn't process that." }]);
+      setMessages((prev: Message[]) => [...prev, { role: 'model', text: response.text || "I couldn't process that." }]);
     } catch (err) { console.error(err); }
   };
 
@@ -228,7 +228,7 @@ export const VoiceChat: React.FC<VoiceChatProps> = ({ isOpen, setIsOpen }) => {
 
   return (
     <>
-      <button onClick={() => setIsOpen(!isOpen)} className={`fixed bottom-8 right-8 w-16 h-16 rounded-[1.5rem] shadow-2xl flex items-center justify-center transition-all z-50 hover:scale-110 active:scale-95 ${isOpen ? 'bg-slate-900' : 'bg-blue-600'} text-white`}>
+      <button onClick={() => setIsOpen(!isOpen)} aria-label={isOpen ? "Close Voice Chat" : "Open Voice Chat"} className={`fixed bottom-8 right-8 w-16 h-16 rounded-[1.5rem] shadow-2xl flex items-center justify-center transition-all z-50 hover:scale-110 active:scale-95 ${isOpen ? 'bg-slate-900' : 'bg-blue-600'} text-white`}>
         {isOpen ? <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg> : <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>}
       </button>
 
@@ -260,7 +260,7 @@ export const VoiceChat: React.FC<VoiceChatProps> = ({ isOpen, setIsOpen }) => {
               <div className={`relative group max-w-[85%] px-5 py-3 rounded-2xl text-sm font-medium ${m.role === 'user' ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-800 border border-slate-200 shadow-sm'}`}>
                 {m.text}
                 {m.role === 'model' && (
-                  <button onClick={() => handleSpeakMessage(m.text, `msg-${i}`)} className="absolute -right-12 top-1/2 -translate-y-1/2 p-2 bg-white rounded-xl shadow-md border border-slate-100 text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all focus:opacity-100">
+                  <button aria-label="Speak message" onClick={() => handleSpeakMessage(m.text, `msg-${i}`)} className="absolute -right-12 top-1/2 -translate-y-1/2 p-2 bg-white rounded-xl shadow-md border border-slate-100 text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all focus:opacity-100">
                     {isTTSLoading === `msg-${i}` ? <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div> : <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>}
                   </button>
                 )}
@@ -274,21 +274,21 @@ export const VoiceChat: React.FC<VoiceChatProps> = ({ isOpen, setIsOpen }) => {
 
         <div className="p-6 bg-white border-t border-slate-100">
           <div className="flex gap-3">
-            <button onClick={startLiveSession} className={`p-4 rounded-2xl transition-all shadow-lg ${isLive ? 'bg-red-500 text-white scale-105 shadow-red-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 shadow-slate-100'}`}>
+            <button aria-label={isLive ? "Stop Listening" : "Start Listening"} onClick={startLiveSession} className={`p-4 rounded-2xl transition-all shadow-lg ${isLive ? 'bg-red-500 text-white scale-105 shadow-red-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 shadow-slate-100'}`}>
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
             </button>
             <div className="flex-1 relative">
-              <input type="text" value={inputText} onChange={e => setInputText(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSendMessage()} placeholder={isLive ? "Analyzing voice..." : "Type command..."} className="w-full bg-slate-100 border-none rounded-2xl px-5 py-4 text-sm font-semibold focus:ring-4 focus:ring-blue-500/10 outline-none transition-all placeholder:text-slate-400" />
-              {!isLive && inputText.trim() && <button onClick={handleSendMessage} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-blue-600 text-white rounded-xl shadow-lg hover:bg-blue-700 transition-all"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg></button>}
+              <input aria-label="Chat Input" type="text" value={inputText} onChange={e => setInputText(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSendMessage()} placeholder={isLive ? "Analyzing voice..." : "Type command..."} className="w-full bg-slate-100 border-none rounded-2xl px-5 py-4 text-sm font-semibold focus:ring-4 focus:ring-blue-500/10 outline-none transition-all placeholder:text-slate-400" />
+              {!isLive && inputText.trim() && <button aria-label="Send Message" onClick={handleSendMessage} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-blue-600 text-white rounded-xl shadow-lg hover:bg-blue-700 transition-all"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg></button>}
             </div>
           </div>
           <div className="mt-4 flex items-center justify-between px-2">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{isLive ? 'Connected' : 'Standby'}</span>
             <div className="flex items-center gap-2">
-              <button onClick={() => setIsMuted(!isMuted)} className="text-slate-300 hover:text-slate-600">
+              <button aria-label="Toggle Mute" onClick={() => setIsMuted(!isMuted)} className="text-slate-300 hover:text-slate-600">
                 {isMuted ? <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" /></svg> : <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>}
               </button>
-              <input type="range" min="0" max="1" step="0.1" value={volume} onChange={e => setVolume(parseFloat(e.target.value))} className="w-12 h-1 bg-slate-100 rounded-full appearance-none cursor-pointer accent-blue-600" />
+              <input aria-label="Volume Control" type="range" min="0" max="1" step="0.1" value={volume} onChange={e => setVolume(parseFloat(e.target.value))} className="w-12 h-1 bg-slate-100 rounded-full appearance-none cursor-pointer accent-blue-600" />
             </div>
           </div>
         </div>

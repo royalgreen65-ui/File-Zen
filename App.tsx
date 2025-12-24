@@ -1,6 +1,6 @@
 
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { FileMetadata, FolderMetadata, FileCategory, ProcessingState, DuplicateGroup, UndoRecord, CustomRule } from './types';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { FileMetadata, FileCategory, ProcessingState, DuplicateGroup, UndoRecord, CustomRule } from './types';
 import { categorizeFiles } from './geminiService';
 import { FileIcon } from './components/FileIcon';
 import { VoiceChat } from './components/VoiceChat';
@@ -22,22 +22,21 @@ const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>('IDLE');
   const [sourceHandle, setSourceHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [files, setFiles] = useState<FileMetadata[]>([]);
-  const [folders, setFolders] = useState<FolderMetadata[]>([]);
+
   const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[]>([]);
   const [filesToDelete, setFilesToDelete] = useState<Set<string>>(new Set<string>());
-  const [foldersToDelete, setFoldersToDelete] = useState<Set<string>>(new Set<string>());
-  const [rules, setRules] = useState<Record<string, FileCategory>>({});
+
+
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set<string>());
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  
+
   const [sortField, setSortField] = useState<SortField>('lastModified');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   const [lastMoveHistory, setLastMoveHistory] = useState<UndoRecord[]>([]);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  
-  const [editingFilePath, setEditingFilePath] = useState<string | null>(null);
-  const [tempRenameValue, setTempRenameValue] = useState('');
+
+
 
   const [customRules, setCustomRules] = useState<CustomRule[]>([]);
   const [newRulePattern, setNewRulePattern] = useState('');
@@ -141,8 +140,8 @@ const App: React.FC = () => {
 
   const startScan = async (rootHandle: FileSystemDirectoryHandle) => {
     const foundFiles: FileMetadata[] = [];
-    const foundFolders: FolderMetadata[] = [];
-    
+
+
     const scan = async (handle: FileSystemDirectoryHandle, currentPath = '') => {
       let fileCount = 0;
       let subFolderCount = 0;
@@ -150,7 +149,7 @@ const App: React.FC = () => {
       // @ts-ignore
       for await (const entry of handle.values()) {
         if (excludedFolders.has(entry.name)) {
-          continue; 
+          continue;
         }
 
         if (entry.kind === 'file') {
@@ -173,16 +172,7 @@ const App: React.FC = () => {
         }
       }
 
-      if (currentPath !== '') {
-        foundFolders.push({
-          name: handle.name,
-          path: currentPath,
-          handle: handle,
-          fileCount,
-          subFolderCount,
-          willBeEmpty: false
-        });
-      }
+
     };
 
     try {
@@ -221,16 +211,16 @@ const App: React.FC = () => {
           setProcessing(prev => ({ ...prev, activity: `AI Identifying ${filesForAI.length} items...` }));
           const fileNames = filesForAI.map(f => f.name);
           const aiCategories = await categorizeFiles(fileNames);
-          
+
           foundFiles.forEach(f => {
             if (f.suggestedCategory === FileCategory.UNKNOWN && aiCategories[f.name]) {
               f.suggestedCategory = aiCategories[f.name];
             }
           });
         }
-        
+
         setFiles(foundFiles);
-        setFolders(foundFolders);
+
         setSelectedFiles(new Set(foundFiles.filter(f => f.suggestedCategory !== FileCategory.UNKNOWN).map(f => f.name)));
       }
 
@@ -245,8 +235,8 @@ const App: React.FC = () => {
 
   const handleReset = () => {
     if (window.confirm("Clear all results and reset the tidy process?")) {
-      setFiles([]); setFolders([]); setDuplicateGroups([]); setFilesToDelete(new Set()); setFoldersToDelete(new Set());
-      setRules({}); setSelectedFiles(new Set()); setSourceHandle(null); setStep('IDLE'); setLastMoveHistory([]);
+      setFiles([]); setDuplicateGroups([]); setFilesToDelete(new Set());
+      setSelectedFiles(new Set()); setSourceHandle(null); setStep('IDLE'); setLastMoveHistory([]);
       setProcessing({ isScanning: false, isOrganizing: false, error: null, progress: 0, activity: '', currentFileName: '' });
     }
   };
@@ -322,7 +312,7 @@ const App: React.FC = () => {
     setProcessing(prev => ({ ...prev, isOrganizing: true, activity: 'Purging Redundant Files', progress: 0 }));
     let count = 0; const total = filesToDelete.size;
     for (const fileName of Array.from(filesToDelete)) {
-      try { await sourceHandle.removeEntry(fileName); } catch (e) {}
+      try { await sourceHandle.removeEntry(fileName); } catch (e) { }
       count++; setProcessing(prev => ({ ...prev, progress: Math.round((count / total) * 100) }));
     }
     setFiles(files.filter(f => !filesToDelete.has(f.name)));
@@ -344,10 +334,7 @@ const App: React.FC = () => {
     setFiles(prev => prev.map(f => f.name === fileName ? { ...f, suggestedCategory: category } : f));
   };
 
-  const handleBulkCategorize = (category: FileCategory) => {
-    if (selectedFiles.size === 0) return;
-    setFiles(prev => prev.map(f => selectedFiles.has(f.name) ? { ...f, suggestedCategory: category } : f));
-  };
+
 
   const handleToggleSelect = (name: string) => {
     setSelectedFiles(prev => {
@@ -496,30 +483,9 @@ const App: React.FC = () => {
     });
   }, [files, sortField, sortDirection]);
 
-  const emptyFolders = useMemo(() => {
-    return folders.map(folder => {
-      const containedFiles = files.filter(f => f.path.startsWith(folder.path));
-      const willBeEmpty = containedFiles.length > 0 && containedFiles.every(f => selectedFiles.has(f.name));
-      const isCurrentlyEmpty = folder.fileCount === 0 && folder.subFolderCount === 0;
-      return { ...folder, willBeEmpty: willBeEmpty || isCurrentlyEmpty, category: isCurrentlyEmpty ? 'Empty' : 'Residual' };
-    }).filter(f => f.willBeEmpty);
-  }, [folders, files, selectedFiles]);
 
-  const handleDeleteEmptyFolders = async () => {
-    if (!sourceHandle || foldersToDelete.size === 0) return;
-    setStep('EXPORTING'); setProcessing(prev => ({ ...prev, isOrganizing: true, progress: 0, activity: 'Deleting folders...' }));
-    let count = 0; const total = foldersToDelete.size;
-    for (const folderPath of Array.from(foldersToDelete) as string[]) {
-      try {
-        const parts = folderPath.split('/'); const folderName = parts.pop()!;
-        let parent = sourceHandle; for (const part of parts) if (part) parent = await parent.getDirectoryHandle(part);
-        await parent.removeEntry(folderName, { recursive: true });
-      } catch (e) {}
-      count++; setProcessing(prev => ({ ...prev, progress: Math.round((count / total) * 100) }));
-    }
-    setFolders(prev => prev.filter(f => !foldersToDelete.has(f.path)));
-    setFoldersToDelete(new Set()); setStep('REVIEW'); setProcessing(prev => ({ ...prev, isOrganizing: false }));
-  };
+
+
 
   const handleFileDragStart = (e: React.DragEvent, fileName: string) => {
     e.dataTransfer.setData('fileName', fileName);
@@ -568,7 +534,7 @@ const App: React.FC = () => {
           )}
           {sourceHandle && (
             <div className="flex items-center gap-3">
-              <button 
+              <button
                 onClick={handleReset}
                 className="px-4 py-2 text-xs font-bold text-red-600 border border-red-100 bg-white rounded-xl hover:bg-red-50 transition-all"
               >
@@ -601,8 +567,9 @@ const App: React.FC = () => {
               <p className="text-slate-500 text-lg mb-10 leading-relaxed font-medium">
                 Streamline your workspace with AI-powered file categorization and automated sorting rules. Just select a folder to begin.
               </p>
-              <button 
+              <button
                 onClick={handlePickSource}
+                aria-label="Select Folder to Tidy"
                 className="group relative px-12 py-5 bg-slate-900 text-white rounded-[1.5rem] font-bold shadow-2xl hover:bg-black hover:-translate-y-1 transition-all active:scale-95 flex items-center gap-3 mx-auto"
               >
                 Select Folder
@@ -615,14 +582,14 @@ const App: React.FC = () => {
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-8">AI Sorting Parameters</h3>
                 <form onSubmit={addCustomRule} className="space-y-4 mb-10">
                   <div className="flex gap-3">
-                    <select value={newRuleType} onChange={e => setNewRuleType(e.target.value as any)} className="px-4 py-3 rounded-2xl border-none bg-white text-xs font-extrabold outline-none shadow-sm ring-1 ring-slate-200">
+                    <select aria-label="Rule Type" value={newRuleType} onChange={e => setNewRuleType(e.target.value as any)} className="px-4 py-3 rounded-2xl border-none bg-white text-xs font-extrabold outline-none shadow-sm ring-1 ring-slate-200">
                       <option value="extension">Ext</option>
                       <option value="keyword">Key</option>
                     </select>
-                    <input type="text" value={newRulePattern} onChange={e => setNewRulePattern(e.target.value)} placeholder={newRuleType === 'extension' ? ".exe" : "Contract"} className="flex-1 px-5 py-3 rounded-2xl border-none bg-white shadow-sm ring-1 ring-slate-200 outline-none focus:ring-blue-500 text-sm font-medium" />
+                    <input aria-label="Rule Pattern" type="text" value={newRulePattern} onChange={e => setNewRulePattern(e.target.value)} placeholder={newRuleType === 'extension' ? ".exe" : "Contract"} className="flex-1 px-5 py-3 rounded-2xl border-none bg-white shadow-sm ring-1 ring-slate-200 outline-none focus:ring-blue-500 text-sm font-medium" />
                   </div>
                   <div className="flex gap-3">
-                    <select value={newRuleCategory} onChange={e => setNewRuleCategory(e.target.value as any)} className="flex-1 px-4 py-3 rounded-2xl border-none bg-white text-xs font-extrabold outline-none shadow-sm ring-1 ring-slate-200">
+                    <select aria-label="Rule Category" value={newRuleCategory} onChange={e => setNewRuleCategory(e.target.value as any)} className="flex-1 px-4 py-3 rounded-2xl border-none bg-white text-xs font-extrabold outline-none shadow-sm ring-1 ring-slate-200">
                       {Object.values(FileCategory).map(cat => <option key={cat} value={cat}>{cat}</option>)}
                     </select>
                     <button type="submit" className="px-8 py-3 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-colors shadow-lg shadow-blue-100">
@@ -639,7 +606,7 @@ const App: React.FC = () => {
                         <svg className="w-3 h-3 text-slate-300 mx-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                         <span className="text-xs font-bold text-slate-500">{rule.category}</span>
                       </div>
-                      <button onClick={() => removeCustomRule(rule.id)} className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-300 hover:text-red-500 transition-all hover:bg-red-50 rounded-lg">
+                      <button aria-label="Remove Rule" onClick={() => removeCustomRule(rule.id)} className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-300 hover:text-red-500 transition-all hover:bg-red-50 rounded-lg">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
                     </div>
@@ -651,8 +618,8 @@ const App: React.FC = () => {
                 <div className="bg-slate-50/50 rounded-3xl p-10 border border-slate-100 hover:bg-white transition-all hover:shadow-xl hover:shadow-slate-200/50">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-8">Tree Exclusions</h3>
                   <form onSubmit={addExclusion} className="flex gap-3 mb-8">
-                    <input type="text" value={newExclusion} onChange={e => setNewExclusion(e.target.value)} placeholder="e.g. node_modules" className="flex-1 px-5 py-3 rounded-2xl border-none bg-white shadow-sm ring-1 ring-slate-200 outline-none focus:ring-blue-500 text-sm font-medium" />
-                    <button type="submit" className="p-3 bg-slate-900 text-white rounded-2xl hover:bg-black transition-colors shadow-lg">
+                    <input aria-label="New Exclusion" type="text" value={newExclusion} onChange={e => setNewExclusion(e.target.value)} placeholder="e.g. node_modules" className="flex-1 px-5 py-3 rounded-2xl border-none bg-white shadow-sm ring-1 ring-slate-200 outline-none focus:ring-blue-500 text-sm font-medium" />
+                    <button aria-label="Add Exclusion" type="submit" className="p-3 bg-slate-900 text-white rounded-2xl hover:bg-black transition-colors shadow-lg">
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
                     </button>
                   </form>
@@ -660,7 +627,7 @@ const App: React.FC = () => {
                     {Array.from(excludedFolders).map(folder => (
                       <span key={String(folder)} className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 flex items-center gap-2 shadow-sm animate-soft-in">
                         {String(folder)}
-                        <button onClick={() => removeExclusion(String(folder))} className="text-slate-300 hover:text-red-500 transition-colors">
+                        <button aria-label="Remove Exclusion" onClick={() => removeExclusion(String(folder))} className="text-slate-300 hover:text-red-500 transition-colors">
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                       </span>
@@ -775,12 +742,12 @@ const App: React.FC = () => {
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              
+
               <div className="space-y-3 mb-12">
                 {stats.map((stat, index) => (
                   <div key={stat.name} onDragOver={e => handleCategoryDragOver(e, stat.name)} onDrop={e => handleCategoryDrop(e, stat.name as any)} className={`flex justify-between items-center p-4 rounded-2xl border-2 transition-all ${dragOverCategory === stat.name ? 'border-blue-500 bg-blue-50 scale-105 shadow-xl' : 'border-transparent bg-white shadow-sm hover:translate-x-1'}`}>
                     <div className="flex items-center gap-4">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
+                      <div className={`w-3 h-3 rounded-full ${index % COLORS.length === 0 ? 'bg-blue-500' : index % COLORS.length === 1 ? 'bg-emerald-500' : index % COLORS.length === 2 ? 'bg-amber-500' : 'bg-rose-500'}`}></div>
                       <span className="text-xs font-black text-slate-700 uppercase tracking-tight">{stat.name}</span>
                     </div>
                     <span className="px-2.5 py-1 bg-slate-50 rounded-lg text-[10px] font-black text-slate-400">{stat.value}</span>
@@ -812,7 +779,7 @@ const App: React.FC = () => {
               <div className="p-10 border-b border-slate-100 bg-white/80 backdrop-blur-md sticky top-0 z-10 flex flex-col gap-8">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-5">
-                    <input type="checkbox" checked={selectedFiles.size === files.length && files.length > 0} onChange={handleSelectAll} className="w-6 h-6 rounded-xl border-slate-200 text-blue-600 focus:ring-blue-500/20 cursor-pointer shadow-sm transition-all" />
+                    <input aria-label="Select All Files" type="checkbox" checked={selectedFiles.size === files.length && files.length > 0} onChange={handleSelectAll} className="w-6 h-6 rounded-xl border-slate-200 text-blue-600 focus:ring-blue-500/20 cursor-pointer shadow-sm transition-all" />
                     <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Verification</h2>
                   </div>
                   <div className="flex bg-slate-100/50 p-1.5 rounded-2xl gap-1">
@@ -828,7 +795,7 @@ const App: React.FC = () => {
               <div className="flex-1 overflow-y-auto p-10 space-y-4 custom-scrollbar">
                 {sortedFilesList.map(file => (
                   <div key={file.path} draggable onDragStart={e => handleFileDragStart(e, file.name)} className={`group flex items-center gap-6 p-6 rounded-3xl border transition-all cursor-grab active:cursor-grabbing ${selectedFiles.has(file.name) ? 'bg-white border-slate-200 shadow-xl shadow-slate-200/40' : 'bg-slate-50/50 border-transparent opacity-50'}`}>
-                    <input type="checkbox" checked={selectedFiles.has(file.name)} onChange={() => handleToggleSelect(file.name)} className="w-6 h-6 rounded-xl border-slate-200 text-blue-600 transition-all cursor-pointer" />
+                    <input aria-label={`Select ${file.name}`} type="checkbox" checked={selectedFiles.has(file.name)} onChange={() => handleToggleSelect(file.name)} className="w-6 h-6 rounded-xl border-slate-200 text-blue-600 transition-all cursor-pointer" />
                     <FileIcon category={file.suggestedCategory} className="w-12 h-12 p-3 bg-slate-50 rounded-2xl" />
                     <div className="flex-1 min-w-0">
                       <p className="font-extrabold text-slate-900 truncate mb-1 tracking-tight">{file.name}</p>
@@ -839,7 +806,7 @@ const App: React.FC = () => {
                         {file.suggestedCategory !== FileCategory.UNKNOWN && <span className="bg-indigo-50 text-indigo-500 px-2 py-0.5 rounded-lg ml-2">Smart Match</span>}
                       </div>
                     </div>
-                    <select value={file.suggestedCategory} onChange={e => updateFileCategory(file.name, e.target.value as any)} className="bg-slate-100/50 border-none text-[10px] font-black text-slate-600 rounded-xl px-5 py-3 outline-none ring-1 ring-transparent focus:ring-blue-500/10 transition-all uppercase tracking-widest cursor-pointer hover:bg-slate-200/50">
+                    <select aria-label={`Category for ${file.name}`} value={file.suggestedCategory} onChange={e => updateFileCategory(file.name, e.target.value as any)} className="bg-slate-100/50 border-none text-[10px] font-black text-slate-600 rounded-xl px-5 py-3 outline-none ring-1 ring-transparent focus:ring-blue-500/10 transition-all uppercase tracking-widest cursor-pointer hover:bg-slate-200/50">
                       {Object.values(FileCategory).map(cat => <option key={cat} value={cat}>{cat}</option>)}
                     </select>
                   </div>
