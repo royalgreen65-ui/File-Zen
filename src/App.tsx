@@ -61,8 +61,10 @@ const App: React.FC = () => {
   });
 
   const [isAutoCategorizing, setIsAutoCategorizing] = useState(false);
+  const [isSecure, setIsSecure] = useState(true);
 
   useEffect(() => {
+    setIsSecure(window.isSecureContext);
     const savedRules = localStorage.getItem('filezen_custom_rules');
     if (savedRules) {
       try {
@@ -115,8 +117,20 @@ const App: React.FC = () => {
       await startScan(handle);
     } catch (err: any) {
       setStep('IDLE');
-      if (err && typeof err === 'object' && 'name' in err && err.name !== 'AbortError') {
-        setProcessing(prev => ({ ...prev, error: "Access denied. Grant permissions to continue.", isScanning: false }));
+      if (err && typeof err === 'object' && 'name' in err) {
+        if (err.name === 'SecurityError') {
+          let errorMsg = "The browser blocked access to this folder for security reasons.";
+          if (!window.isSecureContext) {
+            errorMsg = "Security Block: The browser requires a 'Secure Context' (like http://localhost) to access your files. Please run the app using 'npm run dev' or 'run.bat' instead of opening the file directly.";
+          } else {
+            errorMsg = "Security Block: The browser prevents access to sensitive folders (like your root Downloads or User folder). \n\nTip: Try creating a subfolder (e.g., 'Downloads/To_Tidy') and picking that instead!";
+          }
+          setProcessing(prev => ({ ...prev, error: errorMsg, isScanning: false }));
+        } else if (err.name !== 'AbortError') {
+          setProcessing(prev => ({ ...prev, error: "Access denied. Grant permissions in the browser popup to continue.", isScanning: false }));
+        } else {
+          setProcessing(prev => ({ ...prev, isScanning: false }));
+        }
       } else {
         setProcessing(prev => ({ ...prev, isScanning: false }));
       }
@@ -524,12 +538,16 @@ const App: React.FC = () => {
             </div>
             <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">FileZen</h1>
           </div>
-          <p className="text-slate-500 font-medium ml-12">Intelligent Desktop Orchestrator</p>
+          <p className="text-slate-500 font-medium ml-12 italic">The AI-Powered Desktop Utility</p>
         </div>
         <div className="flex gap-4 items-center ml-auto">
           {deferredPrompt && (
-            <button onClick={handleInstallClick} className="px-5 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all shadow-sm">
-              Install App
+            <button onClick={handleInstallClick} className="group relative px-5 py-2.5 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 flex items-center gap-2 overflow-hidden">
+              <span className="relative z-10 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                Install as Utility
+              </span>
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
             </button>
           )}
           {sourceHandle && (
@@ -551,9 +569,30 @@ const App: React.FC = () => {
 
       <main className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-100 relative min-h-[700px] flex flex-col">
         {processing.error && (
-          <div className="m-6 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-700 flex items-center gap-3 text-sm font-medium animate-soft-in">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            {processing.error}
+          <div className="m-6 p-6 bg-red-50 border border-red-100 rounded-[2rem] text-red-700 animate-soft-in">
+            <div className="flex items-start gap-4">
+              <div className="bg-red-100 p-2 rounded-xl text-red-600">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+              </div>
+              <div className="flex-1">
+                <h4 className="font-bold text-red-900 mb-1">Access Restricted</h4>
+                <p className="text-sm font-medium whitespace-pre-line leading-relaxed">{processing.error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!isSecure && step === 'IDLE' && (
+          <div className="mx-6 mt-6 p-6 bg-amber-50 border border-amber-100 rounded-[2rem] text-amber-800 animate-soft-in">
+            <div className="flex items-center gap-4">
+              <div className="bg-amber-100 p-2 rounded-xl text-amber-600">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <div>
+                <h4 className="font-bold text-amber-900">Limited Capability detected</h4>
+                <p className="text-sm font-medium">You are opening the file directly. Please use <b>run.bat</b> for the full AI experience.</p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -563,9 +602,9 @@ const App: React.FC = () => {
               <div className="w-24 h-24 bg-gradient-to-tr from-blue-600 to-indigo-600 text-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-blue-200 animate-bounce-slow">
                 <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
               </div>
-              <h2 className="text-4xl font-extrabold mb-4 text-slate-900 tracking-tight">System Zen starts here.</h2>
+              <h2 className="text-4xl font-extrabold mb-4 text-slate-900 tracking-tight">Desktop Utility Mode</h2>
               <p className="text-slate-500 text-lg mb-10 leading-relaxed font-medium">
-                Streamline your workspace with AI-powered file categorization and automated sorting rules. Just select a folder to begin.
+                Organize your workspace with AI. Click <b>"Install as Utility"</b> above to run File-Zen in its own window, just like a standard Windows app.
               </p>
               <button
                 onClick={handlePickSource}
