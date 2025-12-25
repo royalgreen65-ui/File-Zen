@@ -1,38 +1,35 @@
-# FileZen - AI File Organizer
 
-An intelligent desktop orchestrator that uses Gemini AI to clean up and organize your folders.
+# FileZen - Windows AI Utility
 
-## How to Run Locally
+A high-fidelity system tool that uses Gemini AI to clean up and organize your local folders (Downloads, Documents, Desktop, etc).
 
-### 1. Prerequisite: Node.js
-This app requires **Node.js** to serve the files correctly (browsers block file system access if you just open the `index.html` file directly).
-- Download it here: [https://nodejs.org/](https://nodejs.org/)
+## 🚀 Native EXE Experience on Windows 11
 
-### 2. Launch the App
-- **Windows 11 / 10**: Double-click `run.bat`.
-- **Mac / Linux**: Open Terminal in this folder and type `sh run.sh`.
+To make FileZen behave like a standard Windows `.exe` with a Taskbar icon and a standalone window:
 
-### 3. Open in Browser
-Once the script is running, open your browser (Chrome or Edge recommended) and go to:
-`http://localhost:3000`
+1.  **Start the Utility**:
+    Ensure you have [Node.js](https://nodejs.org/) installed. In this folder, run:
+    ```powershell
+    npm start
+    ```
+
+2.  **Create Desktop Shortcut**:
+    Right-click `CreateShortcut.ps1` and select **"Run with PowerShell"**. 
+    *This creates a "FileZen" shortcut on your Desktop.*
+
+3.  **Launch from Desktop**:
+    Double-click the new Desktop Shortcut. FileZen will open in a **Native App Window** (no browser tabs, no address bar).
 
 ---
 
-## Troubleshooting (Windows 11)
+## 🛠 Features for Power Users
 
-If `run.bat` closes immediately or shows an error:
+-   **Mica Architecture**: Follows Windows 11 Fluent Design guidelines.
+-   **Gemini Intelligence**: Uses Google's latest `gemini-3-flash-preview` for high-accuracy file classification.
+-   **Secure File System Access**: Uses the modern `FileSystemDirectoryHandle` API for direct local disk interaction.
+-   **Eye-Friendly Mode**: Intelligent Light and Dark themes optimized for long-term usage.
 
-1. **"Node is not recognized"**: You need to install Node.js (see Step 1 above). If you just installed it, **restart your computer** to update your system paths.
-2. **Windows Protected your PC**: Windows 11 often blocks `.bat` files from the internet. 
-   - Right-click `run.bat` -> **Properties**.
-   - Check the **"Unblock"** box at the bottom and click **Apply**.
-3. **Running via PowerShell**: If double-clicking doesn't work, right-click inside the folder, select **"Open in Terminal"**, and type:
-   ```powershell
-   npx serve .
-   ```
+## Troubleshooting
 
-## Installation (Desktop App)
-Once the app is running in **Chrome** or **Edge**:
-1. Look at the right side of the Address Bar.
-2. Click the **"Install FileZen"** icon (looks like a monitor with an arrow).
-3. The app will now behave like a native Windows 11 desktop program.
+- **"Access Denied"**: This is a security feature of Windows. When the app asks for folder access, click "Allow" in the browser prompt.
+- **Shortcut doesn't open**: Ensure the local server (`npm start`) is still running in the background.
